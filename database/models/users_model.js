@@ -26,3 +26,43 @@ export const getUserByEmail = async (email) => {
 
     return query.rows[0];
 }
+
+export const updateUserProfile = async (username, fullName, userSchool, userMajor, userYear, userBio) => {
+    const query = await pool.query(
+        'UPDATE users SET full_name = $1, user_school = $2, user_major = $3, user_year = $4, user_bio = $5 WHERE username = $6 RETURNING *',
+        [fullName, userSchool, userMajor, userYear, userBio, username]
+    );
+    return query.rows[0];
+}
+
+export const getUserFollowersCount = async (username) => {
+    const query = await pool.query(
+        'SELECT followers FROM users WHERE username = $1',
+        [username]
+    );
+    return query.rows[0].followers;
+}
+
+export const getUserFollowingCount = async (username) => {
+    const query = await pool.query(
+        'SELECT user_following FROM users WHERE username = $1',
+        [username]
+    );
+    return query.rows[0].user_following;
+}
+
+export const updatePassword = async (new_passwordHash, username) => {
+    const query = await pool.query(
+        'UPDATE users SET hashed_password = $1 WHERE username = $2 RETURNING *',
+        [new_passwordHash, username]
+    );
+    return query.rows[0];
+}
+
+export const deactivateUser = async (username) => {
+    const query = await pool.query(
+        'UPDATE users SET active = false WHERE username = $1 RETURNING *',
+        [username]
+    );
+    return query.rows[0];
+}
