@@ -1,4 +1,4 @@
-import * as Device from 'expo-device';
+/*import * as Device from 'expo-device';
 import { Platform, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -94,5 +94,192 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.four,
     borderRadius: Spacing.four,
+  },
+});*/
+
+import Ionicons from "@expo/vector-icons/Ionicons";
+import { Image } from "expo-image";
+import { FlatList, StyleSheet, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { feedPosts } from "../constants/homeData";
+
+export default function HomeScreen() {
+  const renderPost = ({ item }: { item: (typeof feedPosts)[0] }) => (
+    <View style={styles.postCard}>
+      <View style={styles.postHeader}>
+        <Image source={{ uri: item.avatar }} style={styles.avatar} />
+
+        <View>
+          <Text style={styles.username}>{item.username}</Text>
+          <Text style={styles.time}>{item.time}</Text>
+        </View>
+      </View>
+
+      <Image
+        source={{ uri: item.image }}
+        style={styles.postImage}
+        contentFit="cover"
+      />
+
+      <View style={styles.postActions}>
+        <Ionicons name="heart-outline" size={26} color="#111827" />
+        <Ionicons name="chatbubble-outline" size={25} color="#111827" />
+        <Ionicons name="share-outline" size={25} color="#111827" />
+      </View>
+
+      <View style={styles.captionSection}>
+        <Text style={styles.likes}>{item.likes} likes</Text>
+
+        <Text style={styles.caption}>
+          <Text style={styles.captionUsername}>{item.username}</Text>{" "}
+          {item.caption}
+        </Text>
+
+        <Text style={styles.comments}>View all {item.comments} comments</Text>
+      </View>
+    </View>
+  );
+
+  return (
+    <View style={styles.screen}>
+      <SafeAreaView edges={["top", "bottom"]} style={styles.safeTop}>
+        <View style={styles.headerRow}>
+          <Text style={styles.pageTitle}>HiveFive</Text>
+
+          <View style={styles.iconRow}>
+            <Ionicons name="search-outline" size={25} color="#111827" />
+            <Ionicons name="notifications-outline" size={24} color="#111827" />
+          </View>
+        </View>
+
+        <View style={styles.divider} />
+
+        <FlatList
+          data={feedPosts}
+          renderItem={renderPost}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+        />
+      </SafeAreaView>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+  },
+
+  safeTop: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+  },
+
+  headerRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 12,
+  },
+
+  pageTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#111827",
+  },
+
+  iconRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 18,
+  },
+
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: "#D1D5DB",
+  },
+
+  listContent: {
+    paddingBottom: 180,
+  },
+
+  postCard: {
+    backgroundColor: "#FFFFFF",
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "#E5E7EB",
+  },
+
+  postHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+
+  avatar: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    marginRight: 12,
+    backgroundColor: "#E5E7EB",
+  },
+
+  username: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#111827",
+  },
+
+  time: {
+    fontSize: 13,
+    color: "#6B7280",
+    marginTop: 3,
+  },
+
+  postImage: {
+    width: "100%",
+    height: 560,
+    backgroundColor: "#E5E7EB",
+  },
+
+  postActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 8,
+  },
+
+  captionSection: {
+    paddingHorizontal: 16,
+    paddingBottom: 14,
+  },
+
+  likes: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#111827",
+    marginBottom: 8,
+  },
+
+  caption: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: "#111827",
+    marginBottom: 6,
+  },
+
+  captionUsername: {
+    fontWeight: "700",
+  },
+
+  comments: {
+    fontSize: 14,
+    color: "#6B7280",
   },
 });
