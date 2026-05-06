@@ -99,46 +99,76 @@ const styles = StyleSheet.create({
 
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { Image } from "expo-image";
-import { FlatList, StyleSheet, Text, View } from "react-native";
+import { useState } from "react";
+import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { feedPosts } from "../constants/homeData";
 
 export default function HomeScreen() {
-  const renderPost = ({ item }: { item: (typeof feedPosts)[0] }) => (
-    <View style={styles.postCard}>
-      <View style={styles.postHeader}>
-        <Image source={{ uri: item.avatar }} style={styles.avatar} />
+  const [likedPosts, setLikedPosts] = useState<Record<string, boolean>>({});
 
-        <View>
-          <Text style={styles.username}>{item.username}</Text>
-          <Text style={styles.time}>{item.time}</Text>
+  const toggleLike = (postId: string) => {
+    setLikedPosts((current) => ({
+      ...current,
+      [postId]: !current[postId],
+    }));
+  };
+
+  const renderPost = ({ item }: { item: (typeof feedPosts)[0] }) => {
+    const isLiked = likedPosts[item.id];
+    const likeCount = item.likes + (isLiked ? 1 : 0);
+
+    return (
+      <View style={styles.postCard}>
+        <View style={styles.postHeader}>
+          <Image source={{ uri: item.avatar }} style={styles.avatar} />
+
+          <View>
+            <Text style={styles.username}>{item.username}</Text>
+            <Text style={styles.time}>{item.time}</Text>
+          </View>
+        </View>
+
+        <Image
+          source={{ uri: item.image }}
+          style={styles.postImage}
+          contentFit="cover"
+        />
+
+        <View style={styles.postActions}>
+          <Pressable
+            onPress={() => toggleLike(item.id)}
+            accessibilityRole="button"
+            accessibilityLabel={`${isLiked ? "Unlike" : "Like"} ${item.username}'s post`}
+            style={styles.actionButton}
+          >
+            <Ionicons
+              name={isLiked ? "heart" : "heart-outline"}
+              size={26}
+              color={isLiked ? "#DC2626" : "#111827"}
+            />
+          </Pressable>
+          <Pressable accessibilityRole="button" style={styles.actionButton}>
+            <Ionicons name="chatbubble-outline" size={25} color="#111827" />
+          </Pressable>
+          <Pressable accessibilityRole="button" style={styles.actionButton}>
+            <Ionicons name="share-outline" size={25} color="#111827" />
+          </Pressable>
+        </View>
+
+        <View style={styles.captionSection}>
+          <Text style={styles.likes}>{likeCount} likes</Text>
+
+          <Text style={styles.caption}>
+            <Text style={styles.captionUsername}>{item.username}</Text>{" "}
+            {item.caption}
+          </Text>
+
+          <Text style={styles.comments}>View all {item.comments} comments</Text>
         </View>
       </View>
-
-      <Image
-        source={{ uri: item.image }}
-        style={styles.postImage}
-        contentFit="cover"
-      />
-
-      <View style={styles.postActions}>
-        <Ionicons name="heart-outline" size={26} color="#111827" />
-        <Ionicons name="chatbubble-outline" size={25} color="#111827" />
-        <Ionicons name="share-outline" size={25} color="#111827" />
-      </View>
-
-      <View style={styles.captionSection}>
-        <Text style={styles.likes}>{item.likes} likes</Text>
-
-        <Text style={styles.caption}>
-          <Text style={styles.captionUsername}>{item.username}</Text>{" "}
-          {item.caption}
-        </Text>
-
-        <Text style={styles.comments}>View all {item.comments} comments</Text>
-      </View>
-    </View>
-  );
+    );
+  };
 
   return (
     <View style={styles.screen}>
@@ -253,6 +283,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 8,
+  },
+
+  actionButton: {
+    width: 30,
+    height: 30,
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   captionSection: {

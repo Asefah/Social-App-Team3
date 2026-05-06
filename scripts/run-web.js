@@ -1,0 +1,65 @@
+#!/usr/bin/env node
+
+const { existsSync } = require("node:fs");
+const net = require("node:net");
+const { dirname } = require("node:path");
+const { spawnSync } = require("node:child_process");
+
+const bundledNode =
+  "/Users/pragnyakunamneni/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node";
+
+const majorVersion = Number.parseInt(process.versions.node.split(".")[0], 10);
+const PORT = 8081;
+
+const isPortOpen = (port) =>
+  new Promise((resolve) => {
+    const socket = net.createConnection({ host: "127.0.0.1", port });
+
+    socket.once("connect", () => {
+      socket.destroy();
+      resolve(true);
+    });
+
+    socket.once("error", () => resolve(false));
+    socket.setTimeout(500, () => {
+      socket.destroy();
+      resolve(false);
+    });
+  });
+
+const run = async () => {
+  if (await isPortOpen(PORT)) {
+    console.log(`HiveFive is already running: http://localhost:${PORT}`);
+    return;
+  }
+
+  if (majorVersion < 22) {
+    if (existsSync(bundledNode)) {
+      const result = spawnSync(bundledNode, [__filename], {
+        stdio: "inherit",
+        env: {
+          ...process.env,
+          PATH: `${dirname(bundledNode)}:${process.env.PATH}`,
+        },
+      });
+
+      process.exit(result.status ?? 1);
+    }
+
+    console.error(
+      `HiveFive needs Node 22 or newer. You are using Node ${process.version}.`
+    );
+    console.error("Install Node 22+, then run `npm run dev` again.");
+    process.exit(1);
+  }
+
+  const result = spawnSync(
+    process.platform === "win32" ? "npx.cmd" : "npx",
+    ["expo", "start", "--web", "--port", String(PORT)],
+    { stdio: "inherit" }
+  );
+
+  process.exit(result.status ?? 1);
+};
+
+run();

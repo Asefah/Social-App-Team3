@@ -10,54 +10,78 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { categories, events } from "../constants/eventData"
+import { categories, events } from "../constants/eventData";
 
 export default function EventsScreen() {
   const [selectedCategory, setSelectedCategory] = useState("All");
+  const [rsvps, setRsvps] = useState<Record<string, boolean>>({});
 
   const filteredData =
     selectedCategory === "All"
       ? events
       : events.filter((item) => item.category === selectedCategory);
 
-  const renderEventsCard = ({ item }: { item: (typeof events)[0] }) => (
-    <View style={styles.card}>
-      <View style={styles.cardImageWrapper}>
-        <Image
-          source={{ uri: item.image }}
-          style={styles.cardImage}
-          contentFit="cover"
-        />
+  const toggleRsvp = (eventId: string) => {
+    setRsvps((current) => ({
+      ...current,
+      [eventId]: !current[eventId],
+    }));
+  };
 
-        <View style={styles.attendanceIndicator}>
-          <Text style={styles.attendanceIndicatorText}>{item.attendance}</Text>
+  const renderEventsCard = ({ item }: { item: (typeof events)[0] }) => {
+    const isGoing = rsvps[item.id];
+
+    return (
+      <View style={styles.card}>
+        <View style={styles.cardImageWrapper}>
+          <Image
+            source={{ uri: item.image }}
+            style={styles.cardImage}
+            contentFit="cover"
+          />
+
+          <View style={styles.attendanceIndicator}>
+            <Text style={styles.attendanceIndicatorText}>
+              {isGoing ? "You're going" : item.attendance}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.cardInfo}>
+          <Text style={styles.eventTitle}>{item.title}</Text>
+
+          <View style={styles.infoRow}>
+            <Ionicons name="calendar-outline" size={20} color="#4B5563" />
+            <Text style={styles.infoText}>{item.date}</Text>
+          </View>
+
+          <View style={styles.infoRow}>
+            <Ionicons name="time-outline" size={20} color="#4B5563" />
+            <Text style={styles.infoText}>{item.time}</Text>
+          </View>
+
+          <View style={styles.infoRow}>
+            <Ionicons name="location-outline" size={20} color="#4B5563" />
+            <Text style={styles.infoText}>{item.location}</Text>
+          </View>
+
+          <Pressable
+            onPress={() => toggleRsvp(item.id)}
+            accessibilityRole="button"
+            accessibilityLabel={`${isGoing ? "Cancel RSVP for" : "RSVP to"} ${item.title}`}
+            style={[styles.rsvpButton, isGoing && styles.rsvpButtonActive]}
+          >
+            <Ionicons
+              name={isGoing ? "checkmark-circle" : "add-circle-outline"}
+              size={20}
+              color="white"
+            />
+            <Text style={styles.rsvpLabel}>{isGoing ? "Going" : "RSVP"}</Text>
+          </Pressable>
         </View>
       </View>
-
-      <View style={styles.cardInfo}>
-        <Text style={styles.eventTitle}>{item.title}</Text>
-
-        <View style={styles.infoRow}>
-          <Ionicons name="calendar-outline" size={20} color="#4B5563" />
-          <Text style={styles.infoText}>{item.date}</Text>
-        </View>
-
-        <View style={styles.infoRow}>
-          <Ionicons name="time-outline" size={20} color="#4B5563" />
-          <Text style={styles.infoText}>{item.time}</Text>
-        </View>
-
-        <View style={styles.infoRow}>
-          <Ionicons name="location-outline" size={20} color="#4B5563" />
-          <Text style={styles.infoText}>{item.location}</Text>
-        </View>
-
-        <Pressable style={styles.rsvpButton}>
-          <Text style={styles.rsvpLabel}>RSVP</Text>
-        </Pressable>
-      </View>
-    </View>
-  );
+    );
+  };
 
   const headerSection = (
     <View>
@@ -288,7 +312,13 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
+    flexDirection: "row",
+    gap: 8,
     paddingVertical: 16,
+  },
+
+  rsvpButtonActive: {
+    backgroundColor: "#16A34A",
   },
 
   rsvpLabel: {
