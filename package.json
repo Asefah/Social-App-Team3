@@ -8,7 +8,10 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "api": "npm run start --prefix backend",
+    "db:ping": "npm run db:ping --prefix backend",
+    "db:create": "npm run db:create --prefix backend"
   },
   "dependencies": {
     "@react-navigation/bottom-tabs": "^7.15.5",
@@ -21,8 +24,10 @@
     "expo-font": "~55.0.6",
     "expo-glass-effect": "~55.0.10",
     "expo-image": "~55.0.8",
+    "expo-image-picker": "~55.0.20",
     "expo-linking": "~55.0.13",
     "expo-router": "~55.0.12",
+    "expo-secure-store": "~15.0.7",
     "expo-splash-screen": "~55.0.18",
     "expo-status-bar": "~55.0.5",
     "expo-symbols": "~55.0.7",

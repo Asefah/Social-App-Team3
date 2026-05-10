@@ -1,10 +1,18 @@
 import pool from '../db.js';
 
-export const createUser = async (username, email, passwordHash, fullName) => {
+export const createUser = async (
+    username,
+    email,
+    passwordHash,
+    fullName,
+    userSchool,
+    userMajor,
+    userYear
+) => {
     const query = await pool.query(
-        'INSERT INTO users (username, email, hashed_password, full_name) VALUES ($1, $2, $3, $4) RETURNING *',
-        [username, email, passwordHash, fullName]
-    )
+        'INSERT INTO users (username, email, hashed_password, full_name, user_school, user_major, user_year) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+        [username, email, passwordHash, fullName, userSchool, userMajor, userYear]
+    );
     return query.rows[0];
 };
 
@@ -16,7 +24,37 @@ export const getUserByUsername = async (username) => {
     );
 
     return query.rows[0];
-}
+};
+
+/** Matches profile grid: forum posts with an image + manual user_images. */
+export const getProfileGridPostCount = async (username) => {
+    const query = await pool.query(
+        `SELECT
+          (
+            COALESCE(
+              (SELECT COUNT(*)::int FROM forum_posts fp
+               WHERE fp.username = $1
+                 AND fp.post_kind = 'home'
+                 AND fp.image_url IS NOT NULL
+                 AND BTRIM(fp.image_url) <> ''),
+              0
+            )
+            + COALESCE(
+              (SELECT COUNT(*)::int FROM user_images ui WHERE ui.username = $1),
+              0
+            )
+          ) AS n`,
+        [username]
+    );
+    return Number(query.rows[0]?.n ?? 0);
+};
+
+export const getUserByUsernameWithPostCount = async (username) => {
+    const user = await getUserByUsername(username);
+    if (!user) return null;
+    const posts = await getProfileGridPostCount(username);
+    return { ...user, posts };
+};
 
 export const getUserByEmail = async (email) => {
     const query = await pool.query(
@@ -31,6 +69,14 @@ export const updateUserProfile = async (username, fullName, userSchool, userMajo
     const query = await pool.query(
         'UPDATE users SET full_name = $1, user_school = $2, user_major = $3, user_year = $4, user_bio = $5 WHERE username = $6 RETURNING *',
         [fullName, userSchool, userMajor, userYear, userBio, username]
+    );
+    return query.rows[0];
+}
+
+export const setUserAvatarUrl = async (username, avatarUrl) => {
+    const query = await pool.query(
+        'UPDATE users SET avatar_url = $1 WHERE username = $2 RETURNING *',
+        [avatarUrl, username]
     );
     return query.rows[0];
 }
@@ -89,12 +135,8 @@ export class User {
         this.fullName = fullName;
     }
 
-    static async createUser(username, email, passwordHash, fullName) {
-        const query = await this.pool.query(
-            'INSERT INTO users (username, email, hashed_password, full_name) VALUES ($1, $2, $3, $4) RETURNING *',
-            [username, email, passwordHash, fullName]
-        );
-        return query.rows[0];
+    static async createUser(username, email, passwordHash, fullName, userSchool, userMajor, userYear) {
+        return createUser(username, email, passwordHash, fullName, userSchool, userMajor, userYear);
     }
 
     static async getUserByUsername(username) {

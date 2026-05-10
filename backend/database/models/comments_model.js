@@ -10,7 +10,7 @@ export const createComment = async (forumPostId, username, content) => {
 
 export const getCommentsByForumPostId = async (forumPostId) => {
     const query = await pool.query(
-        'SELECT * FROM comments WHERE forum_post_id = $1 ORDER BY created_at ASC',
+        'SELECT * FROM comments WHERE forum_post_id = $1 ORDER BY comment_id ASC',
         [forumPostId]
     );
     return query.rows;

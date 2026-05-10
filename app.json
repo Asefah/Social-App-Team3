@@ -8,9 +8,15 @@
     "scheme": "umassconnect",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/expo.icon",
+      "infoPlist": {
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true
+        }
+      }
     },
     "android": {
+      "usesCleartextTraffic": true,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -35,11 +41,21 @@
           }
         }
       ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "UMass Connect uses your photos for profile pictures and posts.",
+          "cameraPermission": "UMass Connect uses the camera for profile pictures and posts."
+        }
+      ],
       "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "apiUrl": "http://localhost:3000"
     }
   }
 }

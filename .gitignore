@@ -32,6 +32,10 @@ yarn-error.*
 
 # local env files
 .env*.local
+backend/.env
+
+# User-uploaded images (local dev)
+backend/uploads/
 
 # typescript
 *.tsbuildinfo

@@ -1,25 +1,70 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { Image } from "expo-image";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   FlatList,
   Linking,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { categories, resources } from "../constants/resourceData";
+
+import { useAuth } from "@/context/AuthContext";
+import { listResources, type ResourceApi } from "@/lib/api";
 
 export default function ResourcesScreen() {
+  const { token } = useAuth();
+  const [categories, setCategories] = useState<string[]>(["All"]);
   const [selectedCategory, setSelectedCategory] = useState("All");
+  const [resources, setResources] = useState<ResourceApi[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const filteredData =
-    selectedCategory === "All"
-      ? resources
-      : resources.filter((item) => item.category === selectedCategory);
+  const load = useCallback(async () => {
+    setError(null);
+    const { categories: cats, resources: rows } = await listResources(
+      token,
+      selectedCategory === "All" ? undefined : selectedCategory
+    );
+    if (cats?.length) setCategories(cats);
+    setResources(rows);
+  }, [token, selectedCategory]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      try {
+        await load();
+      } catch (e) {
+        if (!cancelled) {
+          setError(e instanceof Error ? e.message : "Could not load resources");
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [load]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Refresh failed");
+    } finally {
+      setRefreshing(false);
+    }
+  }, [load]);
 
   const openWebsite = async (url: string) => {
     if (await Linking.canOpenURL(url)) {
@@ -27,7 +72,7 @@ export default function ResourcesScreen() {
     }
   };
 
-  const renderResourceCard = ({ item }: { item: (typeof resources)[0] }) => (
+  const renderResourceCard = ({ item }: { item: ResourceApi }) => (
     <View style={styles.card}>
       <View style={styles.cardImageWrapper}>
         <Image
@@ -74,14 +119,13 @@ export default function ResourcesScreen() {
           <Pressable style={styles.iconButton}>
             <Ionicons name="search-outline" size={22} color="black" />
           </Pressable>
-
           <Pressable style={styles.iconButton}>
             <Ionicons name="funnel-outline" size={22} color="black" />
           </Pressable>
         </View>
       </View>
 
-      <View style={styles.divider}></View>
+      <View style={styles.divider} />
 
       <View style={styles.categorySection}>
         <ScrollView
@@ -117,7 +161,7 @@ export default function ResourcesScreen() {
         </ScrollView>
       </View>
 
-      <View style={styles.divider}></View>
+      <View style={styles.divider} />
     </View>
   );
 
@@ -125,28 +169,33 @@ export default function ResourcesScreen() {
     <View style={styles.screen}>
       <SafeAreaView edges={["top", "bottom"]} style={styles.safeTop}>
         {headerSection}
-        <FlatList
-          data={filteredData}
-          renderItem={renderResourceCard}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.listContent}
-        ></FlatList>
+        {error ? <Text style={styles.bannerError}>{error}</Text> : null}
+        {loading ? (
+          <View style={styles.centered}>
+            <ActivityIndicator size="large" />
+          </View>
+        ) : (
+          <FlatList
+            data={resources}
+            renderItem={renderResourceCard}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.listContent}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+            }
+            ListEmptyComponent={
+              <Text style={styles.emptyText}>No resources in this category.</Text>
+            }
+          />
+        )}
       </SafeAreaView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: "#FFFFFF",
-  },
-
-  safeTop: {
-    flex: 1,
-    backgroundColor: "#FFFFFF",
-  },
-
+  screen: { flex: 1, backgroundColor: "#FFFFFF" },
+  safeTop: { flex: 1, backgroundColor: "#FFFFFF" },
   headerRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -155,42 +204,12 @@ const styles = StyleSheet.create({
     paddingTop: 10,
     paddingBottom: 14,
   },
-
-  pageTitle: {
-    fontSize: 22,
-    fontWeight: "700",
-    color: "#111827",
-  },
-
-  iconGroup: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-
-  iconButton: {
-    width: 32,
-    height: 32,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  divider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: "#D1D5DB",
-  },
-
-  categorySection: {
-    paddingTop: 12,
-    paddingBottom: 4,
-  },
-
-  categoryScrollContent: {
-    paddingHorizontal: 20,
-    gap: 12,
-    paddingBottom: 10,
-  },
-
+  pageTitle: { fontSize: 22, fontWeight: "700", color: "#111827" },
+  iconGroup: { flexDirection: "row", alignItems: "center", gap: 12 },
+  iconButton: { width: 32, height: 32, alignItems: "center", justifyContent: "center" },
+  divider: { height: StyleSheet.hairlineWidth, backgroundColor: "#D1D5DB" },
+  categorySection: { paddingTop: 12, paddingBottom: 4 },
+  categoryScrollContent: { paddingHorizontal: 20, gap: 12, paddingBottom: 10 },
   categoryTag: {
     borderRadius: 999,
     paddingHorizontal: 16,
@@ -198,30 +217,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-
-  selectedCategoryTag: {
-    backgroundColor: "#2563EB",
-  },
-
+  selectedCategoryTag: { backgroundColor: "#2563EB" },
   unselectedCategoryTag: {
     backgroundColor: "#F3F4F6",
     borderWidth: 1,
     borderColor: "#D1D5DB",
   },
-
-  categoryText: {
-    fontSize: 14,
-    fontWeight: "600",
-  },
-
-  selectedCategoryText: {
-    color: "white",
-  },
-
-  unselectedCategoryText: {
-    color: "#374151",
-  },
-
+  categoryText: { fontSize: 14, fontWeight: "600" },
+  selectedCategoryText: { color: "white" },
+  unselectedCategoryText: { color: "#374151" },
   card: {
     marginHorizontal: 20,
     marginBottom: 18,
@@ -231,23 +235,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#E5E7EB",
   },
-
   cardImageWrapper: {
     position: "relative",
     height: 170,
     width: "100%",
     justifyContent: "flex-end",
   },
-
-  cardImage: {
-    ...StyleSheet.absoluteFillObject,
-  },
-
+  cardImage: { ...StyleSheet.absoluteFillObject },
   imageOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(0,0,0,0.24)",
   },
-
   imageTitle: {
     position: "absolute",
     left: 16,
@@ -257,24 +255,9 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "700",
   },
-
-  cardInfo: {
-    padding: 16,
-  },
-
-  description: {
-    fontSize: 14,
-    lineHeight: 21,
-    color: "#374151",
-    marginBottom: 12,
-  },
-
-  hoursOfOperationRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-
+  cardInfo: { padding: 16 },
+  description: { fontSize: 14, lineHeight: 21, color: "#374151", marginBottom: 12 },
+  hoursOfOperationRow: { flexDirection: "row", alignItems: "center", marginBottom: 16 },
   statusDot: {
     width: 8,
     height: 8,
@@ -282,13 +265,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#2563EB",
     marginRight: 8,
   },
-
-  hoursText: {
-    fontSize: 13,
-    color: "#4B5563",
-    fontWeight: "500",
-  },
-
+  hoursText: { fontSize: 13, color: "#4B5563", fontWeight: "500" },
   visitWebsiteButton: {
     backgroundColor: "#2563EB",
     borderRadius: 12,
@@ -296,21 +273,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingVertical: 12,
   },
-
-  buttonContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-
-  buttonLabel: {
-    color: "white",
-    fontSize: 15,
-    fontWeight: "700",
-  },
-
-  listContent: {
-    paddingBottom: 180,
-    paddingTop: 10,
-  },
+  buttonContent: { flexDirection: "row", alignItems: "center", gap: 8 },
+  buttonLabel: { color: "white", fontSize: 15, fontWeight: "700" },
+  listContent: { paddingBottom: 180, paddingTop: 10 },
+  centered: { flex: 1, justifyContent: "center", alignItems: "center", paddingTop: 24 },
+  emptyText: { textAlign: "center", color: "#6B7280", marginTop: 24, paddingHorizontal: 24 },
+  bannerError: { color: "#DC2626", textAlign: "center", paddingVertical: 8 },
 });

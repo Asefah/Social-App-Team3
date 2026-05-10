@@ -1,0 +1,26 @@
+{
+  "name": "umassconnect-api",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node ./scripts/ensure-jwt-secret.mjs && node server.js",
+    "dev": "node ./scripts/ensure-jwt-secret.mjs && node --watch server.js",
+    "db:ping": "node ./scripts/db-ping.mjs",
+    "db:create": "node ./scripts/create-db.mjs",
+    "db:migrate:002": "node ./scripts/run-migration-002.mjs",
+    "db:migrate:003": "node ./scripts/run-migration-003.mjs",
+    "db:migrate:004": "node ./scripts/run-migration-004.mjs",
+    "db:migrate:005": "node ./scripts/run-migration-005.mjs",
+    "db:migrate:006": "node ./scripts/run-migration-006.mjs",
+    "db:migrate:007": "node ./scripts/run-migration-007.mjs"
+  },
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.0",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^1.4.5-lts.2",
+    "pg": "^8.13.1"
+  }
+}

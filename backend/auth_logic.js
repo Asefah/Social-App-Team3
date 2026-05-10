@@ -1,6 +1,11 @@
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import { createUser, getUserByEmail, getUserByUsername } from './database/models/users_model.js';
+import {
+  createUser,
+  getUserByEmail,
+  getUserByUsername,
+  getUserByUsernameWithPostCount,
+} from './database/models/users_model.js';
 
 const ALLOWED_EMAIL_DOMAINS = [
   'umass.edu',
@@ -8,6 +13,15 @@ const ALLOWED_EMAIL_DOMAINS = [
   'hampshire.edu',
   'smith.edu',
   'mtholyoke.edu'
+];
+
+/** Must match signup UI — stored in `users.user_school` */
+const FIVE_COLLEGE_SCHOOL_NAMES = [
+  'UMass Amherst',
+  'Amherst College',
+  'Hampshire College',
+  'Smith College',
+  'Mount Holyoke College'
 ];
 
 const SALT_ROUNDS = 10;
@@ -38,7 +52,26 @@ const isValidUsername = (username) => {
   return /^[a-zA-Z0-9_]+$/.test(trimmed);
 };
 
-const sanitizeUser = (user) => {
+const isValidFiveCollegeSchool = (school) => {
+  if (!school || typeof school !== 'string') return false;
+  return FIVE_COLLEGE_SCHOOL_NAMES.includes(school.trim());
+};
+
+const isNonEmptyProfileField = (value, fieldLabel, maxLen) => {
+  if (!value || typeof value !== 'string') {
+    throw new Error(`${fieldLabel} is required.`);
+  }
+  const t = value.trim();
+  if (!t) {
+    throw new Error(`${fieldLabel} is required.`);
+  }
+  if (t.length > maxLen) {
+    throw new Error(`${fieldLabel} must be at most ${maxLen} characters.`);
+  }
+  return t;
+};
+
+export const sanitizeUser = (user) => {
   return {
     username: user.username,
     email: user.email,
@@ -47,12 +80,59 @@ const sanitizeUser = (user) => {
     user_major: user.user_major,
     user_year: user.user_year,
     user_bio: user.user_bio,
+    avatar_url: user.avatar_url ?? null,
     created_at: user.created_at,
-    active: user.active
+    active: user.active,
+    posts: user.posts ?? 0,
+    followers: user.followers ?? 0,
+    following: user.user_following ?? 0,
   };
 };
 
-export const registerUser = async ({ username, email, password, fullName }) => {
+/** Public profile (no email); use for other users' profiles. */
+export const sanitizePublicUser = (user) => {
+  return {
+    username: user.username,
+    full_name: user.full_name,
+    user_school: user.user_school,
+    user_major: user.user_major,
+    user_year: user.user_year,
+    user_bio: user.user_bio,
+    avatar_url: user.avatar_url ?? null,
+    created_at: user.created_at,
+    active: user.active,
+    posts: user.posts ?? 0,
+    followers: user.followers ?? 0,
+    following: user.user_following ?? 0,
+  };
+};
+
+const getJwtSecret = () => {
+  const secret = process.env.JWT_SECRET;
+  if (!secret || typeof secret !== 'string') {
+    throw new Error('JWT_SECRET is not set. Add it to backend/.env');
+  }
+  return secret;
+};
+
+/** @param {{ username: string }} user */
+export const signAuthToken = (user) => {
+  return jwt.sign({ sub: user.username }, getJwtSecret(), { expiresIn: '7d' });
+};
+
+export const verifyAuthToken = (token) => {
+  return jwt.verify(token, getJwtSecret());
+};
+
+export const registerUser = async ({
+  username,
+  email,
+  password,
+  fullName,
+  userSchool,
+  userMajor,
+  userYear
+}) => {
   if (!username || !email || !password) {
     throw new Error('Username, email, and password are required.');
   }
@@ -60,6 +140,10 @@ export const registerUser = async ({ username, email, password, fullName }) => {
   const normalizedUsername = username.trim();
   const normalizedEmail = email.trim().toLowerCase();
   const normalizedFullName = fullName ? fullName.trim() : null;
+
+  if (!normalizedFullName) {
+    throw new Error('Full name is required.');
+  }
 
   if (!isValidUsername(normalizedUsername)) {
     throw new Error('Username must be 3-50 characters and contain only letters, numbers, and underscores.');
@@ -73,14 +157,25 @@ export const registerUser = async ({ username, email, password, fullName }) => {
     throw new Error('Password must be at least 8 characters long.');
   }
 
+  if (!isValidFiveCollegeSchool(userSchool)) {
+    throw new Error('Please select one of the Five Colleges.');
+  }
+  const schoolStored = userSchool.trim();
+  const majorStored = isNonEmptyProfileField(userMajor, 'Major', 255);
+  const yearStored = isNonEmptyProfileField(userYear, 'Class year', 50);
+
   const existingEmailUser = await getUserByEmail(normalizedEmail);
   if (existingEmailUser) {
-    throw new Error('An account with this email already exists.');
+    throw new Error(
+      'An account with this email already exists. Use Log in with that email, or use a different email.'
+    );
   }
 
   const existingUsernameUser = await getUserByUsername(normalizedUsername);
   if (existingUsernameUser) {
-    throw new Error('This username is already taken.');
+    throw new Error(
+      'This username is already taken. Pick another username or log in if that account is yours.'
+    );
   }
 
   const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
@@ -89,10 +184,14 @@ export const registerUser = async ({ username, email, password, fullName }) => {
     normalizedUsername,
     normalizedEmail,
     passwordHash,
-    normalizedFullName
+    normalizedFullName,
+    schoolStored,
+    majorStored,
+    yearStored
   );
 
-  return sanitizeUser(newUser);
+  const withPosts = await getUserByUsernameWithPostCount(newUser.username);
+  return sanitizeUser(withPosts ?? newUser);
 };
 
 export const loginUser = async ({ email, password }) => {
@@ -108,7 +207,7 @@ export const loginUser = async ({ email, password }) => {
     throw new Error('Invalid email or password.');
   }
 
-  if (!user.active) {
+  if (user.active === false) {
     throw new Error('This account has been deactivated.');
   }
 
@@ -118,5 +217,6 @@ export const loginUser = async ({ email, password }) => {
     throw new Error('Invalid email or password.');
   }
 
-  return sanitizeUser(user);
+  const withPosts = await getUserByUsernameWithPostCount(user.username);
+  return sanitizeUser(withPosts ?? user);
 };
