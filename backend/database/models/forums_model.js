@@ -1,9 +1,9 @@
 import pool from '../db.js';
 
-export const createForum = async (username, title, content) => {
+export const createForum = async (username, content) => {
     const query = await pool.query(
-        'INSERT INTO forums (username, title, content) VALUES ($1, $2, $3) RETURNING *',
-        [username, title, content]
+        'INSERT INTO forums (username, content) VALUES ($1, $2) RETURNING *',
+        [username, content]
     );
     return query.rows[0];
 }

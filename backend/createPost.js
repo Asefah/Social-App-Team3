@@ -1,8 +1,8 @@
 import {
-  createPost,
-  getPostById,
-  getPostsByUserId
-} from './database/models/posts_model.js';
+  createForum,
+  getForumById,
+  getForumsByUserId
+} from './database/models/forums_model.js';
 
 const MAX_POST_LENGTH = 5000;
 
@@ -19,15 +19,14 @@ const isValidPostContent = (content) => {
 const sanitizePost = (post) => {
   return {
     post_id: post.post_id,
-    user_id: post.user_id,
+    username: post.username,
+    category: post.category,
     content: post.content,
-    created_at: post.created_at,
-    updated_at: post.updated_at
   };
 };
 
-export const createNewPost = async ({ userId, content }) => {
-  if (!userId || !content) {
+export const createNewPost = async ({ username, content }) => {
+  if (!username || !content) {
     throw new Error('User ID and content are required.');
   }
 
@@ -39,7 +38,7 @@ export const createNewPost = async ({ userId, content }) => {
     );
   }
 
-  const newPost = await createPost(userId, normalizedContent);
+  const newPost = await createForum(username, normalizedContent);
 
   return sanitizePost(newPost);
 };
