@@ -118,6 +118,76 @@ describe('registerUser', () => {
       })
     ).rejects.toThrow('This username is already taken.');
   });
+test('throws error if username, email, or password is missing', async () => {
+  await expect(
+    registerUser({
+      username: '',
+      email: 'test@umass.edu',
+      password: 'password123'
+    })
+  ).rejects.toThrow('Username, email, and password are required.');
+});
+test('throws error for invalid username', async () => {
+  await expect(
+    registerUser({
+      username: 'ab',
+      email: 'test@umass.edu',
+      password: 'password123'
+    })
+  ).rejects.toThrow(
+    'Username must be 3-50 characters and contain only letters, numbers, and underscores.'
+  );
+});
+test('throws error for username with invalid characters', async () => {
+  await expect(
+    registerUser({
+      username: 'test-user!',
+      email: 'test@umass.edu',
+      password: 'password123'
+    })
+  ).rejects.toThrow(
+    'Username must be 3-50 characters and contain only letters, numbers, and underscores.'
+  );
+});
+test('throws error for invalid email format', async () => {
+  await expect(
+    registerUser({
+      username: 'testuser',
+      email: 'test@@umass.edu',
+      password: 'password123'
+    })
+  ).rejects.toThrow('Please use a valid Five College email address.');
+});
+test('throws error if login email or password is missing', async () => {
+  await expect(
+    loginUser({
+      email: '',
+      password: 'password123'
+    })
+  ).rejects.toThrow('Email and password are required.');
+});
+test('registers user successfully with trimmed full name', async () => {
+  userModel.getUserByEmail.mockResolvedValue(null);
+  userModel.getUserByUsername.mockResolvedValue(null);
+
+  userModel.createUser.mockResolvedValue({
+    username: 'testuser',
+    email: 'test@umass.edu',
+    full_name: 'Test User',
+    created_at: new Date(),
+    active: true
+  });
+
+  const result = await registerUser({
+    username: ' testuser ',
+    email: ' TEST@UMASS.EDU ',
+    password: 'password123',
+    fullName: ' Test User '
+  });
+
+  expect(userModel.createUser).toHaveBeenCalled();
+  expect(result.full_name).toBe('Test User');
+});
 
   test('registers user successfully', async () => {
     userModel.getUserByEmail.mockResolvedValue(null);
