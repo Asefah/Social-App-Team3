@@ -1,5 +1,7 @@
 import {
-  createForum
+  createForum,
+  getForumById,
+  getForumsByUserId
 } from './database/models/forums_model.js';
 
 const MAX_POST_LENGTH = 5000;
