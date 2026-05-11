@@ -13,7 +13,12 @@ export const getForumsPosts = async () => {
     return query.rows;
 }
 
-export const getForumById = async (forumId) => {
+export const getForumByUsername = async (username) => {
+    const query = await pool.query('SELECT * FROM forums WHERE username = $1', [username]);
+    return query.rows[0];
+}
+
+export const getForumByForumId = async (forumId) => {
     const query = await pool.query('SELECT * FROM forums WHERE forum_id = $1', [forumId]);
     return query.rows[0];
 }
@@ -43,6 +48,16 @@ export const likeForum = async (forumId) => {
     );
     return query.rows[0];
 }
+
+export const dislikeForum = async (forumId) => {
+    const query = await pool.query(
+        'UPDATE forums SET dislikes = dislikes + 1 WHERE forum_id = $1 RETURNING *',
+        [forumId]
+    );
+    return query.rows[0];
+}
+
+
 export class Forum {
     pool = null;
     forumId = null;
