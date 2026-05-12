@@ -7,6 +7,7 @@
   },
   "scripts": {
     "dev": "node ./scripts/run-web.js",
+    "api": "node backend/server.js",
     "start": "expo start",
     "reset-project": "node ./scripts/reset-project.js",
     "android": "expo start --android",

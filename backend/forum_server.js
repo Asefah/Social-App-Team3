@@ -13,7 +13,7 @@ import {
 
 
 const app = express();
-const PORT = 5000;
+const PORT = 5050;
 
 app.use(express.json());
 
@@ -109,5 +109,4 @@ app.put('/posts/:id/dislike', async (req, res) => {
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
-
 

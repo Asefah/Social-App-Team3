@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS users (
     followers    INTEGER NOT NULL DEFAULT 0,
     posts        INTEGER NOT NULL DEFAULT 0,
     comments     INTEGER NOT NULL DEFAULT 0,
-    active       BOOLEAN NOT NULL DEFAULT TRUE
+    active       BOOLEAN NOT NULL DEFAULT TRUE,
     account_type VARCHAR(50) NOT NULL DEFAULT 'personal'
 );
 
