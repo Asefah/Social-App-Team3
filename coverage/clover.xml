@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<coverage generated="1778532175347" clover="3.2.0">
-  <project timestamp="1778532175347" name="All files">
+<coverage generated="1778532628832" clover="3.2.0">
+  <project timestamp="1778532628832" name="All files">
     <metrics statements="169" coveredstatements="162" conditionals="130" coveredconditionals="113" methods="31" coveredmethods="31" elements="330" coveredelements="306" complexity="0" loc="169" ncloc="169" packages="1" files="3" classes="3"/>
     <file name="auth_logic.js" path="/Users/satvinaik/Desktop/520/Social-App-Team3/backend/auth_logic.js">
       <metrics statements="53" coveredstatements="53" conditionals="45" coveredconditionals="42" methods="6" coveredmethods="6"/>

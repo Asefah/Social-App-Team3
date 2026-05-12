@@ -1,16 +1,22 @@
 import pool from '../db.js';
 
-export const createEvent = async ({ username, eventName, eventDate, eventTime, eventLocation }) => {
+export const createEvent = async (event) => {
+    const eventName = event.eventName ?? event.event_name;
+    const eventDate = event.eventDate ?? event.event_date;
+    const eventTime = event.eventTime ?? event.event_time;
+    const eventLocation = event.eventLocation ?? event.event_location;
+    const category = event.category ?? 'Other';
+
     const query = await pool.query(
-        'INSERT INTO events (username, event_name, event_date, event_time, event_location) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-        [username, eventName, eventDate, eventTime, eventLocation]
+        'INSERT INTO events (username, event_name, event_date, event_time, event_location, category) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+        [event.username, eventName, eventDate, eventTime, eventLocation, category]
     );
     return query.rows[0];
 };
 
 export const getAllActiveEvents = async () => {
     const query = await pool.query(
-        'SELECT * FROM events WHERE active = true ORDER BY created_at DESC'
+        'SELECT * FROM events WHERE active = true ORDER BY edited_at DESC'
     );
     return query.rows;
 };
@@ -27,29 +33,35 @@ export const updateEvent = async (eventId, updates) => {
     const fields = [];
     const values = [];
 
-    if (updates.eventName !== undefined) {
+    const eventName = updates.eventName ?? updates.event_name;
+    const eventDate = updates.eventDate ?? updates.event_date;
+    const eventTime = updates.eventTime ?? updates.event_time;
+    const eventLocation = updates.eventLocation ?? updates.event_location;
+    const rsvps = updates.rsvps ?? updates.RSVPs;
+
+    if (eventName !== undefined) {
         fields.push(`event_name = $${values.length + 1}`);
-        values.push(updates.eventName);
+        values.push(eventName);
     }
-    if (updates.eventDate !== undefined) {
+    if (eventDate !== undefined) {
         fields.push(`event_date = $${values.length + 1}`);
-        values.push(updates.eventDate);
+        values.push(eventDate);
     }
-    if (updates.eventTime !== undefined) {
+    if (eventTime !== undefined) {
         fields.push(`event_time = $${values.length + 1}`);
-        values.push(updates.eventTime);
+        values.push(eventTime);
     }
-    if (updates.eventLocation !== undefined) {
+    if (eventLocation !== undefined) {
         fields.push(`event_location = $${values.length + 1}`);
-        values.push(updates.eventLocation);
+        values.push(eventLocation);
     }
     if (updates.category !== undefined) {
         fields.push(`category = $${values.length + 1}`);
         values.push(updates.category);
     }
-    if (updates.rsvps !== undefined) {
+    if (rsvps !== undefined) {
         fields.push(`RSVPs = $${values.length + 1}`);
-        values.push(updates.rsvps);
+        values.push(rsvps);
     }
     if (updates.active !== undefined) {
         fields.push(`active = $${values.length + 1}`);
@@ -79,7 +91,7 @@ export const getEventIdByEventNameAndUsername = async (eventName, username) => {
 
 export const getEventsByCategory = async (category) => {
     const query = await pool.query(
-        'SELECT * FROM events WHERE category = $1 AND active = true ORDER BY created_at DESC',   
+        'SELECT * FROM events WHERE category = $1 AND active = true ORDER BY edited_at DESC',
         [category]
     );
     return query.rows;
@@ -87,7 +99,7 @@ export const getEventsByCategory = async (category) => {
 
 export const deleteEvent = async (eventId) => {
     const query = await pool.query(
-        'DELETE FROM events WHERE event_id = $1',
+        'DELETE FROM events WHERE event_id = $1 RETURNING *',
         [eventId]
     );
     return query.rows[0];

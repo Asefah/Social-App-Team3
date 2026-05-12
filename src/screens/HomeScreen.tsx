@@ -99,22 +99,98 @@ const styles = StyleSheet.create({
 
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { Image } from "expo-image";
-import { useState } from "react";
-import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { useEffect, useState } from "react";
+import {
+  FlatList,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { feedPosts } from "../constants/homeData";
+import { api, FeedPost } from "../services/api";
+
+const DEMO_USERNAME = "demo_user";
 
 export default function HomeScreen() {
+  const [posts, setPosts] = useState<FeedPost[]>(feedPosts);
   const [likedPosts, setLikedPosts] = useState<Record<string, boolean>>({});
+  const [draftPost, setDraftPost] = useState("");
+  const [apiStatus, setApiStatus] = useState("Using saved sample feed");
 
-  const toggleLike = (postId: string) => {
+  useEffect(() => {
+    api
+      .getPosts()
+      .then((backendPosts) => {
+        if (backendPosts.length > 0) {
+          setPosts(backendPosts);
+          setApiStatus("Connected to backend posts");
+        }
+      })
+      .catch(() => setApiStatus("Backend offline: using sample feed"));
+  }, []);
+
+  const submitPost = async () => {
+    const content = draftPost.trim();
+    if (!content) return;
+
+    const optimisticPost: FeedPost = {
+      id: `local-${Date.now()}`,
+      username: DEMO_USERNAME,
+      time: "Just now",
+      avatar: "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=200",
+      image:
+        "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?q=80&w=1200",
+      likes: 0,
+      caption: content,
+      comments: 0,
+    };
+
+    setDraftPost("");
+    setPosts((current) => [optimisticPost, ...current]);
+
+    try {
+      const savedPost = await api.createPost({
+        username: DEMO_USERNAME,
+        title: "Campus post",
+        content,
+      });
+
+      setPosts((current) =>
+        current.map((post) =>
+          post.id === optimisticPost.id ? savedPost : post
+        )
+      );
+      setApiStatus("Post saved to backend");
+    } catch {
+      setApiStatus("Backend offline: post added locally");
+    }
+  };
+
+  const toggleLike = async (post: FeedPost) => {
+    const postId = post.id;
     setLikedPosts((current) => ({
       ...current,
       [postId]: !current[postId],
     }));
+
+    if (!post.remoteId || likedPosts[postId]) return;
+
+    try {
+      const updatedPost = await api.likePost(post.remoteId);
+      if (updatedPost) {
+        setPosts((current) =>
+          current.map((item) => (item.id === postId ? updatedPost : item))
+        );
+      }
+    } catch {
+      setApiStatus("Backend offline: like saved locally");
+    }
   };
 
-  const renderPost = ({ item }: { item: (typeof feedPosts)[0] }) => {
+  const renderPost = ({ item }: { item: FeedPost }) => {
     const isLiked = likedPosts[item.id];
     const likeCount = item.likes + (isLiked ? 1 : 0);
 
@@ -137,7 +213,7 @@ export default function HomeScreen() {
 
         <View style={styles.postActions}>
           <Pressable
-            onPress={() => toggleLike(item.id)}
+            onPress={() => toggleLike(item)}
             accessibilityRole="button"
             accessibilityLabel={`${isLiked ? "Unlike" : "Like"} ${item.username}'s post`}
             style={styles.actionButton}
@@ -184,8 +260,30 @@ export default function HomeScreen() {
 
         <View style={styles.divider} />
 
+        <View style={styles.composer}>
+          <TextInput
+            value={draftPost}
+            onChangeText={setDraftPost}
+            placeholder="Share something with campus..."
+            style={styles.composerInput}
+            multiline
+          />
+          <Pressable
+            onPress={submitPost}
+            accessibilityRole="button"
+            style={[
+              styles.postButton,
+              !draftPost.trim() && styles.postButtonDisabled,
+            ]}
+          >
+            <Ionicons name="send" size={18} color="white" />
+            <Text style={styles.postButtonText}>Post</Text>
+          </Pressable>
+          <Text style={styles.apiStatus}>{apiStatus}</Text>
+        </View>
+
         <FlatList
-          data={feedPosts}
+          data={posts}
           renderItem={renderPost}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
@@ -235,6 +333,51 @@ const styles = StyleSheet.create({
 
   listContent: {
     paddingBottom: 180,
+  },
+
+  composer: {
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "#E5E7EB",
+    gap: 10,
+  },
+
+  composerInput: {
+    minHeight: 64,
+    borderWidth: 1,
+    borderColor: "#D1D5DB",
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 15,
+    backgroundColor: "#F9FAFB",
+    textAlignVertical: "top",
+  },
+
+  postButton: {
+    height: 42,
+    borderRadius: 12,
+    backgroundColor: "#2563EB",
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 8,
+  },
+
+  postButtonDisabled: {
+    opacity: 0.5,
+  },
+
+  postButtonText: {
+    color: "white",
+    fontWeight: "700",
+    fontSize: 15,
+  },
+
+  apiStatus: {
+    color: "#6B7280",
+    fontSize: 12,
   },
 
   postCard: {

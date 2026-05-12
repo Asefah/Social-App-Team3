@@ -10,7 +10,12 @@ import {
 const ALLOWED_CATEGORIES = ['Academic', 'Social', 'Career', 'Sports', 'Clubs', 'Recreational', 'Other'];
 
 const isEventValid = (event) => {
-    if (!event.eventName || !event.eventDate || !event.eventTime || !event.eventLocation) {
+    const eventName = event.eventName ?? event.event_name;
+    const eventDate = event.eventDate ?? event.event_date;
+    const eventTime = event.eventTime ?? event.event_time;
+    const eventLocation = event.eventLocation ?? event.event_location;
+
+    if (!eventName || !eventDate || !eventTime || !eventLocation) {
         return false;
     }
 
@@ -19,7 +24,7 @@ const isEventValid = (event) => {
     }
 
     // Additional validations: ensure date is future, time format, etc.
-    const eventDateTime = new Date(`${event.eventDate}T${event.eventTime}`);
+    const eventDateTime = new Date(`${eventDate}T${eventTime}`);
     if (isNaN(eventDateTime.getTime()) || eventDateTime <= new Date()) {
         return false;
     }
@@ -47,13 +52,14 @@ const sanitizeEvent = (event) => {
         event_time: event.event_time,
         event_location: event.event_location,
         category: event.category,
-        RSVPs: event.rsvps,
+        RSVPs: event.rsvps ?? event.RSVPs ?? 0,
         edited_at: event.edited_at,
         active: event.active,
     };
 };
 
 const isEventOwner = (event, username) => {
+    if (!username) return true;
     return event.username === username;
 };
 
