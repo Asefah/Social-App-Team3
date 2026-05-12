@@ -5,6 +5,7 @@
   "engines": {
     "node": ">=22"
   },
+  "type": "module",
   "scripts": {
     "dev": "node ./scripts/run-web.js",
     "api": "node backend/server.js",
@@ -13,7 +14,8 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js"
   },
   "dependencies": {
     "@react-navigation/bottom-tabs": "^7.15.5",
