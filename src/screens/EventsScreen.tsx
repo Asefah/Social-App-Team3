@@ -1,34 +1,165 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { Image } from "expo-image";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   FlatList,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { categories, events } from "../constants/eventData";
+import { api, EventItem } from "../services/api";
+
+const DEMO_USERNAME = "demo_user";
+
+const staticEvents: EventItem[] = events.map((event) => {
+  const rsvps = Number.parseInt(event.attendance, 10) || 0;
+
+  return {
+    ...event,
+    username: DEMO_USERNAME,
+    rawDate: "",
+    rawTime: "",
+    rsvps,
+  };
+});
 
 export default function EventsScreen() {
   const [selectedCategory, setSelectedCategory] = useState("All");
+  const [eventList, setEventList] = useState<EventItem[]>(staticEvents);
   const [rsvps, setRsvps] = useState<Record<string, boolean>>({});
+  const [apiStatus, setApiStatus] = useState("Using saved sample events");
+  const [draftEvent, setDraftEvent] = useState({
+    title: "",
+    date: "",
+    time: "",
+    location: "",
+  });
+
+  useEffect(() => {
+    api
+      .getEvents()
+      .then((backendEvents) => {
+        if (backendEvents.length > 0) {
+          setEventList(backendEvents);
+          setApiStatus("Connected to backend events");
+        }
+      })
+      .catch(() => setApiStatus("Backend offline: using sample events"));
+  }, []);
 
   const filteredData =
     selectedCategory === "All"
-      ? events
-      : events.filter((item) => item.category === selectedCategory);
+      ? eventList
+      : eventList.filter((item) => item.category === selectedCategory);
 
-  const toggleRsvp = (eventId: string) => {
+  const createEvent = async () => {
+    const title = draftEvent.title.trim();
+    const eventDate = draftEvent.date.trim();
+    const eventTime = draftEvent.time.trim();
+    const location = draftEvent.location.trim();
+
+    if (!title || !eventDate || !eventTime || !location) return;
+
+    const optimisticEvent: EventItem = {
+      id: `local-${Date.now()}`,
+      username: DEMO_USERNAME,
+      title,
+      date: eventDate,
+      rawDate: eventDate,
+      time: eventTime,
+      rawTime: eventTime,
+      location,
+      attendance: "0 going",
+      rsvps: 0,
+      category: selectedCategory === "All" ? "Other" : selectedCategory,
+      image:
+        "https://images.unsplash.com/photo-1517457373958-b7bdd4587205?q=80&w=1200",
+    };
+
+    setDraftEvent({ title: "", date: "", time: "", location: "" });
+    setEventList((current) => [optimisticEvent, ...current]);
+
+    try {
+      const savedEvent = await api.createEvent({
+        username: DEMO_USERNAME,
+        eventName: title,
+        eventDate,
+        eventTime,
+        eventLocation: location,
+        category: optimisticEvent.category,
+      });
+
+      setEventList((current) =>
+        current.map((event) =>
+          event.id === optimisticEvent.id ? savedEvent : event
+        )
+      );
+      setApiStatus("Event saved to backend");
+    } catch {
+      setApiStatus("Backend offline: event added locally");
+    }
+  };
+
+  const deleteEvent = async (event: EventItem) => {
+    setEventList((current) => current.filter((item) => item.id !== event.id));
+
+    if (event.id.startsWith("local-")) {
+      setApiStatus("Event deleted locally");
+      return;
+    }
+
+    try {
+      await api.deleteEvent(event.id, event.username ?? DEMO_USERNAME);
+      setApiStatus("Event deleted from backend");
+    } catch {
+      setApiStatus("Backend offline: event removed locally");
+    }
+  };
+
+  const toggleRsvp = async (event: EventItem) => {
+    const eventId = event.id;
+    const isGoing = rsvps[eventId];
+
     setRsvps((current) => ({
       ...current,
       [eventId]: !current[eventId],
     }));
+
+    setEventList((current) =>
+      current.map((item) => {
+        if (item.id !== eventId) return item;
+
+        const nextRsvps = item.rsvps + (isGoing ? -1 : 1);
+        return {
+          ...item,
+          rsvps: Math.max(nextRsvps, 0),
+          attendance: `${Math.max(nextRsvps, 0)} going`,
+        };
+      })
+    );
+
+    if (eventId.startsWith("local-")) return;
+
+    try {
+      const updatedEvent = isGoing
+        ? await api.removeRsvp(eventId, DEMO_USERNAME)
+        : await api.addRsvp(eventId, DEMO_USERNAME);
+
+      setEventList((current) =>
+        current.map((item) => (item.id === eventId ? updatedEvent : item))
+      );
+      setApiStatus(isGoing ? "RSVP removed from backend" : "RSVP saved to backend");
+    } catch {
+      setApiStatus("Backend offline: RSVP saved locally");
+    }
   };
 
-  const renderEventsCard = ({ item }: { item: (typeof events)[0] }) => {
+  const renderEventsCard = ({ item }: { item: EventItem }) => {
     const isGoing = rsvps[item.id];
 
     return (
@@ -66,7 +197,7 @@ export default function EventsScreen() {
           </View>
 
           <Pressable
-            onPress={() => toggleRsvp(item.id)}
+            onPress={() => toggleRsvp(item)}
             accessibilityRole="button"
             accessibilityLabel={`${isGoing ? "Cancel RSVP for" : "RSVP to"} ${item.title}`}
             style={[styles.rsvpButton, isGoing && styles.rsvpButtonActive]}
@@ -77,6 +208,15 @@ export default function EventsScreen() {
               color="white"
             />
             <Text style={styles.rsvpLabel}>{isGoing ? "Going" : "RSVP"}</Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() => deleteEvent(item)}
+            accessibilityRole="button"
+            style={styles.deleteButton}
+          >
+            <Ionicons name="trash-outline" size={18} color="#B91C1C" />
+            <Text style={styles.deleteLabel}>Delete Event</Text>
           </Pressable>
         </View>
       </View>
@@ -136,6 +276,52 @@ export default function EventsScreen() {
       </View>
 
       <View style={styles.divider}></View>
+
+      <View style={styles.createSection}>
+        <TextInput
+          value={draftEvent.title}
+          onChangeText={(title) =>
+            setDraftEvent((current) => ({ ...current, title }))
+          }
+          placeholder="Event name"
+          style={styles.createInput}
+        />
+        <View style={styles.formRow}>
+          <TextInput
+            value={draftEvent.date}
+            onChangeText={(date) =>
+              setDraftEvent((current) => ({ ...current, date }))
+            }
+            placeholder="YYYY-MM-DD"
+            style={[styles.createInput, styles.formHalf]}
+          />
+          <TextInput
+            value={draftEvent.time}
+            onChangeText={(time) =>
+              setDraftEvent((current) => ({ ...current, time }))
+            }
+            placeholder="HH:MM"
+            style={[styles.createInput, styles.formHalf]}
+          />
+        </View>
+        <TextInput
+          value={draftEvent.location}
+          onChangeText={(location) =>
+            setDraftEvent((current) => ({ ...current, location }))
+          }
+          placeholder="Location"
+          style={styles.createInput}
+        />
+        <Pressable
+          onPress={createEvent}
+          accessibilityRole="button"
+          style={styles.createButton}
+        >
+          <Ionicons name="add-circle" size={20} color="white" />
+          <Text style={styles.createButtonText}>Create Event</Text>
+        </Pressable>
+        <Text style={styles.apiStatus}>{apiStatus}</Text>
+      </View>
     </View>
   );
 
@@ -196,6 +382,52 @@ const styles = StyleSheet.create({
   divider: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: "#D1D5DB",
+  },
+
+  createSection: {
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    gap: 10,
+  },
+
+  createInput: {
+    minHeight: 44,
+    borderWidth: 1,
+    borderColor: "#D1D5DB",
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    fontSize: 15,
+    backgroundColor: "#F9FAFB",
+  },
+
+  formRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+
+  formHalf: {
+    flex: 1,
+  },
+
+  createButton: {
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: "#2563EB",
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 8,
+  },
+
+  createButtonText: {
+    color: "white",
+    fontSize: 15,
+    fontWeight: "700",
+  },
+
+  apiStatus: {
+    color: "#6B7280",
+    fontSize: 12,
   },
 
   categorySection: {
@@ -324,6 +556,24 @@ const styles = StyleSheet.create({
   rsvpLabel: {
     color: "white",
     fontSize: 17,
+    fontWeight: "700",
+  },
+
+  deleteButton: {
+    marginTop: 10,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#FCA5A5",
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 8,
+    paddingVertical: 12,
+  },
+
+  deleteLabel: {
+    color: "#B91C1C",
+    fontSize: 15,
     fontWeight: "700",
   },
 

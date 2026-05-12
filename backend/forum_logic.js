@@ -1,12 +1,12 @@
 import {
   createForum,
-  getForumByForumId,
-  getForumByUsername,
-  getForumsByCategory,
-  updateForum,
   deleteForum,
+  dislikeForum,
+  getForumByForumId,
+  getForumsByCategory,
+  getForumsPosts,
   likeForum,
-  dislikeForum
+  updateForum,
 } from './database/models/forums_model.js';
 
 const MAX_POST_LENGTH = 5000;
@@ -21,18 +21,27 @@ const isValidPostContent = (content) => {
   return true;
 };
 
-const sanitizePost = (post) => {
-  return {
-    post_id: post.post_id,
-    username: post.username,
-    category: post.category,
-    content: post.content,
-  };
-};
+const sanitizePost = (post) => ({
+  post_id: post.forum_post_id ?? post.forum_id,
+  username: post.username,
+  category: post.category,
+  title: post.title ?? 'Campus post',
+  content: post.content,
+  likes: post.likes ?? 0,
+  dislikes: post.dislikes ?? 0,
+  edited_at: post.edited_at,
+});
 
-export const createNewPost = async ({ username, content }) => {
+export const createNewPost = async (...args) => {
+  const payload =
+    args.length === 1
+      ? args[0]
+      : { username: args[0], title: args[1], content: args[2] };
+
+  const { username, title = 'Campus post', content, category = 'Other' } = payload;
+
   if (!username || !content) {
-    throw new Error('User ID and content are required.');
+    throw new Error('Username and content are required.');
   }
 
   const normalizedContent = content.trim();
@@ -43,25 +52,33 @@ export const createNewPost = async ({ username, content }) => {
     );
   }
 
-  const newPost = await createForum(username, normalizedContent);
+  const newPost = await createForum(
+    username.trim(),
+    title.trim(),
+    normalizedContent,
+    category
+  );
 
   return sanitizePost(newPost);
 };
 
 export const getAllPosts = async () => {
-  const posts = await getAllForums();
+  const posts = await getForumsPosts();
   return posts.map(sanitizePost);
 };
 
 export const getPostDetails = async (postId) => {
-  const post = await getForumById(postId);
+  const post = await getForumByForumId(postId);
   if (!post) {
     throw new Error('Post not found.');
   }
   return sanitizePost(post);
 };
 
-export const updateExistingPost = async (postId, { content }) => {
+export const updateExistingPost = async (postId, titleOrPayload, contentArg) => {
+  const content =
+    typeof titleOrPayload === 'object' ? titleOrPayload.content : contentArg;
+
   if (!content) {
     throw new Error('Content is required.');
   }
@@ -87,6 +104,7 @@ export const deleteExistingPost = async (postId) => {
   if (!deleted) {
     throw new Error('Post not found.');
   }
+  return sanitizePost(deleted);
 };
 
 export const getPostByCategory = async (category) => {
@@ -99,6 +117,7 @@ export const likePost = async (postId) => {
   if (!liked) {
     throw new Error('Post not found.');
   }
+  return sanitizePost(liked);
 };
 
 export const dislikePost = async (postId) => {
@@ -106,4 +125,5 @@ export const dislikePost = async (postId) => {
   if (!disliked) {
     throw new Error('Post not found.');
   }
+  return sanitizePost(disliked);
 };

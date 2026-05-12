@@ -3,13 +3,14 @@
 const { existsSync } = require("node:fs");
 const net = require("node:net");
 const { dirname } = require("node:path");
-const { spawnSync } = require("node:child_process");
+const { spawn, spawnSync } = require("node:child_process");
 
 const bundledNode =
   "/Users/pragnyakunamneni/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node";
 
 const majorVersion = Number.parseInt(process.versions.node.split(".")[0], 10);
-const PORT = 8081;
+const WEB_PORT = 8081;
+const API_PORT = 5050;
 
 const isPortOpen = (port) =>
   new Promise((resolve) => {
@@ -28,11 +29,6 @@ const isPortOpen = (port) =>
   });
 
 const run = async () => {
-  if (await isPortOpen(PORT)) {
-    console.log(`HiveFive is already running: http://localhost:${PORT}`);
-    return;
-  }
-
   if (majorVersion < 22) {
     if (existsSync(bundledNode)) {
       const result = spawnSync(bundledNode, [__filename], {
@@ -53,12 +49,32 @@ const run = async () => {
     process.exit(1);
   }
 
+  let apiProcess;
+
+  if (await isPortOpen(API_PORT)) {
+    console.log(`HiveFive API is already running: http://localhost:${API_PORT}`);
+  } else {
+    apiProcess = spawn(process.execPath, ["backend/server.js"], {
+      stdio: "inherit",
+      env: {
+        ...process.env,
+        PATH: `${dirname(process.execPath)}:${process.env.PATH}`,
+      },
+    });
+  }
+
+  if (await isPortOpen(WEB_PORT)) {
+    console.log(`HiveFive is already running: http://localhost:${WEB_PORT}`);
+    return;
+  }
+
   const result = spawnSync(
     process.platform === "win32" ? "npx.cmd" : "npx",
-    ["expo", "start", "--web", "--port", String(PORT)],
+    ["expo", "start", "--web", "--port", String(WEB_PORT)],
     { stdio: "inherit" }
   );
 
+  apiProcess?.kill();
   process.exit(result.status ?? 1);
 };
 
