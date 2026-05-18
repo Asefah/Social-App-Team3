@@ -1,4 +1,4 @@
-# Social-App-Team3
+# Hive5
 
 ## Project Overview
 The proposed system addresses the lack of a centralized platform for students across the Five College Consortium to share events, resources, and opportunities. Currently, information about campus events, clubs, study resources, and community activities is spread across multiple websites, mailing lists, and social media pages, making it difficult for students to stay informed or explore opportunities outside their own campus. This system aims to create a single platform where students can easily discover events, connect with others, and access useful academic and campus resources.
